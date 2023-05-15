@@ -2,7 +2,7 @@ import math
 import matplotlib.pyplot as plt
 
 
-class scara:
+class Scara:
     def __init__(self, linkages: tuple):
         angles = [0] * len(linkages)  # in degrees
         self.links = list((list(i) for i in zip(linkages, angles)))
@@ -73,8 +73,8 @@ class scara:
         except ValueError:
             raise Exception('Position is out of reach')
 
-        if a1_rad < 0:
-            a1_rad += math.pi
+        # if a1_rad < 0:
+        #     a1_rad += math.pi
 
         return (math.degrees(a1_rad), math.degrees(a2_rad))
 
@@ -105,6 +105,6 @@ class scara:
 
 
 if __name__ == '__main__':
-    scr = scara((50, 50))
+    scr = Scara((50, 50))
     scr.set_angles((24, -24))
     scr.display()
