@@ -73,8 +73,8 @@ class Scara:
         except ValueError:
             raise Exception('Position is out of reach')
 
-        # if a1_rad < 0:
-        #     a1_rad += math.pi
+        if x < 0:
+            a1_rad += math.pi
 
         return (math.degrees(a1_rad), math.degrees(a2_rad))
 
@@ -103,8 +103,14 @@ class Scara:
         for i, angle in enumerate(angles):
             self.links[i][1] = angle
 
-
 if __name__ == '__main__':
     scr = Scara((50, 50))
-    scr.set_angles((24, -24))
+    
+    start = (-50, 50)
+    end = (25, -25)
+    
+    scr.set_position(start)
+    scr.display()
+
+    scr.set_position(end)
     scr.display()

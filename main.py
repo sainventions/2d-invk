@@ -151,15 +151,15 @@ def animate(scr: Scara, a1, a2, model_int=10, link_opacity=1, show=True):
         plt.show()
 
 
-def linear_invk(scr: Scara, start: tuple, end: tuple, intervals: int) -> tuple:
+def basic_linear_invk(scr: Scara, start: tuple, end: tuple, intervals: int) -> tuple:
     # list of angles
     a1s = []
     a2s = []
 
     for i in range(intervals):
         t = 1/intervals*(i+.5)  # samples at the middle of each interval
-        x, y = _lerp(start[0], end[0], t), _lerp(start[1], end[1], t)
-        a1, a2 = scr.inverse((x, y))
+        target = _lerp(start[0], end[0], t), _lerp(start[1], end[1], t)
+        a1, a2 = scr.inverse(target)
         a1s.append(a1)
         a2s.append(a2)
 
@@ -171,14 +171,36 @@ def linear_invk(scr: Scara, start: tuple, end: tuple, intervals: int) -> tuple:
 
     return a1, a2
 
+def path_invk(scr: Scara, path, intervals: int) -> tuple:
+    # list of angles
+    a1s = []
+    a2s = []
+
+    for i in range(intervals):
+        t = 1/intervals*(i+.5)  # samples at the middle of each interval
+        target = path(t)
+        a1, a2 = scr.inverse(target)
+        a1s.append(a1)
+        a2s.append(a2)
+
+    def a1(t: float) -> float:
+        return _multi_lerp(a1s, t)
+
+    def a2(t: float) -> float:
+        return _multi_lerp(a2s, t)
+
+    return a1, a2
 
 if __name__ == '__main__':
     links = [50, 50]  # 50mm linkages
     scr = Scara(links)
 
+    start = (-40, 50)
+    end = (25, -25)
+
     # linear IK demo
-    a1_0, a2_0 = scr.inverse((1, 25))
-    a1_1, a2_1 = scr.inverse((50, 75))
+    a1_0, a2_0 = scr.inverse(start)
+    a1_1, a2_1 = scr.inverse(end)
 
     def a1(t: float) -> float:
         return _lerp(a1_0, a1_1, t)
@@ -190,6 +212,6 @@ if __name__ == '__main__':
     simulate(scr, a1, a2, map_int=100, model_int=100, link_opacity=0.2)
 
     # nonlinear IK demo
-    a1, a2 = linear_invk(scr, (1, 25), (50, 75), 100)
-    #animate(Scara(links), a1, a2, model_int=60, link_opacity=.7, show=False)
+    a1, a2 = basic_linear_invk(scr, start, end, 100)
+    animate(Scara(links), a1, a2, model_int=120, link_opacity=.7, show=False)
     simulate(scr, a1, a2, map_int=100, model_int=100, link_opacity=0.2)
