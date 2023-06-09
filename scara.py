@@ -78,44 +78,6 @@ class Scara:
 
         return (math.degrees(a1_rad), math.degrees(a2_rad))
 
-    def inverse_angle(self, target: tuple) -> float:
-        '''
-        pos: tuple of position (x, y, angle)
-        returns: tuple of angles in degrees (a1, a2, a3)
-        WIP
-        '''
-        if len(self.links) != 3:
-            raise Exception('Inverse kinematics with angle only works for 3 linkages')
-
-        # a_{2}=\arccos\left(\frac{x_{2}^{2}+y_{2}^{2}-l_{1}^{2}-l_{2}^{2}}{2l_{1}l_{2}}\right)
-        # a_{1}=\arctan\left(\frac{y_{2}}{x_{2}}\right)-\arctan\left(\frac{l_{2}\sin\left(a_{2}\right)}{l_{1}+l_{2}\cos\left(a_{2}\right)}\right)
-
-        x, y, at = target
-        l1 = self.links[0][0]
-        l2 = self.links[1][0]
-        l3 = self.links[2][0]
-
-        # project the target to the end of the second linkage
-        x, y = x + l3 * math.cos(math.radians(at)), y + l3 * math.sin(math.radians(at))
-
-        try:
-            a2_rad = math.acos((x**2 + y**2 - l1**2 - l2**2) / (2 * l1 * l2))
-            a1_rad = (
-                math.atan(y / x) -
-                math.atan(l2 * math.sin(a2_rad) / (l1 + l2 * math.cos(a2_rad)))
-            )
-        except ValueError:
-            raise Exception('Position is out of reach')
-
-        if x < 0:
-            a1_rad += math.pi
-
-        a1 = math.degrees(a1_rad)
-        a2 = math.degrees(a2_rad)
-        a3 = at - a1 - a2 # maybe wrong
-
-        return (a1, a2, a3)
-
     def forward(self, angles: tuple) -> tuple:
         '''
         angles: tuple of angles in degrees
