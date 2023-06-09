@@ -1,11 +1,14 @@
+import math
+import time
+import tkinter as tk
+
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-import math
 
 from scara import Scara
 
 
-def _lerp(y0, y1, t):
+def lerp(y0, y1, t):
     '''
     Returns the linear interpolation between y0 and y1 at t in [0, 1]
 
@@ -40,10 +43,10 @@ def _multi_lerp(values, t):
                 y0, y1 = values[i], values[i+1]
                 t0, t1 = (i)/(n-1), (i+1)/(n-1)
                 t_scaled = (t-t0) / (t1-t0)
-                return _lerp(y0, y1, t_scaled)
+                return lerp(y0, y1, t_scaled)
 
 
-def simulate(scr: Scara, a1, a2, map_int=100, model_int=10, link_opacity=0.3, name='Scara Robot Inverse Kinematics'):
+def simulate(scr: Scara, f_a1, f_a2, map_int=100, model_int=10, link_opacity=0.3, name='Scara Robot Inverse Kinematics'):
     '''
     Simulates the scara robot with the given parameters and displays the config space and output space plots
 
@@ -88,9 +91,9 @@ def simulate(scr: Scara, a1, a2, map_int=100, model_int=10, link_opacity=0.3, na
         print(f'config space: {t}/{map_int}')
         t = t / map_int
         a1_t[0].append(t)
-        a1_t[1].append(a1(t))
+        a1_t[1].append(f_a1(t))
         a2_t[0].append(t)
-        a2_t[1].append(a2(t))
+        a2_t[1].append(f_a2(t))
 
     axs[0].plot(a1_t[0], a1_t[1], 'r-')
     axs[0].plot(a2_t[0], a2_t[1], 'b-')
@@ -98,7 +101,7 @@ def simulate(scr: Scara, a1, a2, map_int=100, model_int=10, link_opacity=0.3, na
     for t in range(0, model_int+1):
         print(f'start/end positions: {t}/{model_int}')
         t = t / model_int
-        scr.set_angles((a1(t), a2(t)))
+        scr.set_angles((f_a1(t), f_a2(t)))
         cum_pos = (0, 0)
         cum_angle = 0
         for link in scr.links:
@@ -123,7 +126,7 @@ def simulate(scr: Scara, a1, a2, map_int=100, model_int=10, link_opacity=0.3, na
     for t in range(0, map_int+1):
         print(f'output space: {t}/{map_int}')
         t_float = t / map_int
-        angles = (a1(t_float), a2(t_float))
+        angles = (f_a1(t_float), f_a2(t_float))
         pos = scr.forward(angles)
         xy_t[0].append(pos[0])
         xy_t[1].append(pos[1])
@@ -136,7 +139,7 @@ def simulate(scr: Scara, a1, a2, map_int=100, model_int=10, link_opacity=0.3, na
     plt.show()
 
 
-def animate(scr: Scara, a1, a2, model_int=10, link_opacity=1, show=True, name='Scara Robot Inverse Kinematics'):
+def animate(scr: Scara, f_a1, f_a2, model_int=10, link_opacity=1, show=True, name='Scara Robot Inverse Kinematics'):
     '''
     Animates the scara robot with the given parameters
 
@@ -167,9 +170,8 @@ def animate(scr: Scara, a1, a2, model_int=10, link_opacity=1, show=True, name='S
         ax.set_xlabel('X-axis')
         ax.set_ylabel('Y-axis')
         ax.set_aspect('equal', 'box')
-        ax.set_title(f'a1 = {a1(t):.2f} a2 = {a2(t):.2f}')
 
-        scr.set_angles((a1(t), a2(t)))
+        scr.set_angles((f_a1(t), f_a2(t)))
         cum_pos = (0, 0)
         cum_angle = 0
         for link in scr.links:
@@ -219,8 +221,13 @@ def basic_invk(scr: Scara, start: tuple, end: tuple, intervals: int) -> tuple:
     a2s = []
 
     for i in range(intervals):
-        t = 1/intervals*(i+.5)  # samples at the middle of each interval
-        target = _lerp(start[0], end[0], t), _lerp(start[1], end[1], t)
+        # samples at the middle of each interval
+        # t = 1/intervals*(i+.5)
+
+        # samples at the left of each interval
+        t = 1/intervals*i
+
+        target = lerp(start[0], end[0], t), lerp(start[1], end[1], t)
         a1, a2 = scr.inverse(target)
         a1s.append(a1)
         a2s.append(a2)
@@ -265,11 +272,70 @@ def path_invk(scr: Scara, path, intervals: int) -> tuple:
     return a1, a2
 
 
+def draw_path(size):
+    raw_points = []
+
+    app = tk.Tk()
+    app.title("Draw a path")
+    app.geometry('1000x1000')
+    canvas = tk.Canvas(app)
+    canvas.pack(anchor='nw', fill='both', expand=1)
+
+    def get_pos(event):
+        global last_x, last_y
+        last_x, last_y = event.x, event.y
+
+    def draw(event):
+        global last_x, last_y
+        canvas.create_line(
+            (last_x, last_y, event.x, event.y),
+            fill='blue',
+            width=6
+        )
+        last_x, last_y = event.x, event.y
+
+        # limit x and y to [0, 1000]
+
+        x = max(min(event.x, 1000), 0) / 1000 - .5
+        y = max(min(event.y, 1000), 0) / 1000 - .5
+
+        x *= size
+        y *= size
+
+        raw_points.append((x, -y))
+
+    def finish_drawing():
+        app.quit()  # Exit the main loop when the "Done" button is clicked
+        app.destroy()
+
+    canvas.bind("<Button-1>", get_pos)
+    canvas.bind("<B1-Motion>", draw)
+
+    done_button = tk.Button(app, text="Done", command=finish_drawing)
+    done_button.pack(side=tk.BOTTOM)
+
+    app.mainloop()
+
+    if len(raw_points) < 2:
+        print('Not enough points')
+        exit()
+
+    # unzip the points
+    x, y = zip(*raw_points)
+
+    def path(t):
+        return (
+            _multi_lerp(x, t),
+            _multi_lerp(y, t)
+        )
+
+    return path
+
+
 if __name__ == '__main__':
     links = [50, 50]  # 50mm linkages
     scr = Scara(links)
 
-    '''
     start = (-40, 50)
     end = (25, -25)
 
@@ -278,44 +344,64 @@ if __name__ == '__main__':
     a1_1, a2_1 = scr.inverse(end)
 
     def a1_t(t: float) -> float:
-        return _lerp(a1_0, a1_1, t)
+        return lerp(a1_0, a1_1, t)
 
     def a2_t(t: float) -> float:
-        return _lerp(a2_0, a2_1, t)
+        return lerp(a2_0, a2_1, t)
 
-    #animate(Scara(links), a1, a2, model_int=60, link_opacity=.7, show=False)
     simulate(
-        scr, a1_t, a2_t, map_int=100, model_int=100, link_opacity=0.2,
+        scr, a1_t, a2_t, map_int=100, model_int=10, link_opacity=0.3,
         name='Linear Angle IK'
     )
 
-    # nonlinear IK demo
-    a1_t, a2_t = basic_invk(scr, start, end, 100)
     animate(
-        Scara(links), a1_t, a2_t, model_int=120, show=False,
-        name='Linear Path IK'
+        Scara(links), a1_t, a2_t, model_int=120, show=True,
+        name='Linear Angle IK'
     )
+
+    # Nonlinear IK demo
+    a1_t, a2_t = basic_invk(scr, start, end, 100)
+
     simulate(
         scr, a1_t, a2_t, map_int=100, model_int=100, link_opacity=0.2,
         name='Linear Path IK'
     )
-    '''
 
-    # path IK demo
-    def path(t: float) -> tuple:
-        # \left(150t-75,\frac{50}{1+\left(5\left(t-.5\right)\right)^{2}}\right)
+    animate(
+        Scara(links), a1_t, a2_t, model_int=120, show=True,
+        name='Linear Path IK'
+    )
 
-        return (
-            150*t-75,
-            50/(1+(5*(t-.5))**2)
-        )
+    # Path IK demo
+    # \left(150t-75,\frac{50}{1+\left(5\left(t-.5\right)\right)^{2}}\right)
+    def path(t): return (150*t-75, 50/(1+(5*(t-.5))**2))
 
     a1_t, a2_t = path_invk(scr, path, 100)
-    animate(
-        Scara(links), a1_t, a2_t, model_int=120, show=False,
-        name='Path IK'
-    )
+
     simulate(
         scr, a1_t, a2_t, map_int=100, model_int=100, link_opacity=0.2,
+        name='Path IK'
+    )
+
+    animate(
+        Scara(links), a1_t, a2_t, model_int=120, show=True,
+        name='Path IK'
+    )
+
+    # Draw path IK demo
+    size = (links[0]+links[1])/math.sqrt(2)*2
+    path = draw_path(size)
+
+    time.sleep(1)
+
+    a1_t, a2_t = path_invk(scr, path, 100)
+
+    simulate(
+        scr, a1_t, a2_t, map_int=100, model_int=100, link_opacity=0.2,
+        name='Path IK'
+    )
+
+    animate(
+        Scara(links), a1_t, a2_t, model_int=120, show=True,
         name='Path IK'
     )
