@@ -277,7 +277,7 @@ def draw_path(size):
 
     app = tk.Tk()
     app.title("Draw a path")
-    app.geometry('1000x1000')
+    app.geometry('850x850+0+0')
     canvas = tk.Canvas(app)
     canvas.pack(anchor='nw', fill='both', expand=1)
 
@@ -294,10 +294,10 @@ def draw_path(size):
         )
         last_x, last_y = event.x, event.y
 
-        # limit x and y to [0, 1000]
+        # limit x and y to [0, 850]
 
-        x = max(min(event.x, 1000), 0) / 1000 - .5
-        y = max(min(event.y, 1000), 0) / 1000 - .5
+        x = max(min(event.x, 850), 0) / 850 - .5
+        y = max(min(event.y, 850), 0) / 850 - .5
 
         x *= size
         y *= size
