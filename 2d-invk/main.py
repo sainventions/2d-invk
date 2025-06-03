@@ -364,12 +364,12 @@ if __name__ == '__main__':
 
     simulate(
         scr, a1_t, a2_t, map_int=100, model_int=100, link_opacity=0.2,
-        name='Linear Path IK - sahilss2'
+        name='Linear Path IK'
     )
 
     animate(
         Scara(links), a1_t, a2_t, model_int=120, show=True,
-        name='Linear Path IK - sahilss2'
+        name='Linear Path IK'
     )
 
     # Path IK demo
